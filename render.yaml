@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: leva-app
+    env: node
+    buildCommand: npm install
+    startCommand: node backend/server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        value: mongodb+srv://ara100limite:ERxkG9nXZjbwvpMk@cluster0.yzf2r.mongodb.net/best?retryWrites=true&w=majority 

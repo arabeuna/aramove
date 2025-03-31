@@ -19,46 +19,45 @@ const cleanExpiredCache = () => {
 // Limpa cache expirado a cada hora
 setInterval(cleanExpiredCache, CACHE_DURATION);
 
-module.exports = async (req, res, next) => {
+const auth = async (req, res, next) => {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
-    
+    // Melhorar a detecção do token
+    const token = req.header('Authorization')?.split(' ')[1] || 
+                 req.query.token || 
+                 req.cookies?.token;
+
     if (!token) {
-      return res.status(401).json({ message: 'Token não fornecido' });
+      console.log('Token não fornecido');
+      return res.status(401).json({ 
+        error: 'Autenticação necessária',
+        details: 'Token não fornecido'
+      });
     }
 
-    // Verifica cache
-    const cachedData = tokenCache.get(token);
-    if (cachedData && (Date.now() - cachedData.timestamp < CACHE_DURATION)) {
-      req.user = cachedData.user;
-      
-      // Log com intervalo
-      const now = Date.now();
-      if (now - lastLogTime >= LOG_INTERVAL) {
-        console.log('Cache hit - Token:', token.substring(0, 10) + '...');
-        lastLogTime = now;
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const user = await User.findById(decoded.id || decoded.userId);
+
+      if (!user) {
+        return res.status(401).json({ 
+          error: 'Usuário não encontrado' 
+        });
       }
-      
-      return next();
+
+      req.user = user;
+      req.token = token;
+      next();
+    } catch (err) {
+      console.error('Erro na verificação do token:', err);
+      return res.status(401).json({ 
+        error: 'Token inválido',
+        details: process.env.NODE_ENV === 'development' ? err.message : undefined
+      });
     }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id);
-    
-    if (!user) {
-      return res.status(401).json({ message: 'Usuário não encontrado' });
-    }
-
-    // Atualiza cache
-    tokenCache.set(token, {
-      user,
-      timestamp: Date.now()
-    });
-
-    req.user = user;
-    next();
   } catch (error) {
-    console.error('Erro de autenticação:', error);
-    res.status(401).json({ message: 'Token inválido' });
+    console.error('Erro no middleware de autenticação:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
   }
-}; 
+};
+
+module.exports = auth; 

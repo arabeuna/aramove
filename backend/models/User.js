@@ -1,27 +1,34 @@
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: true
+    required: [true, 'Nome é obrigatório'],
+    trim: true
   },
   email: {
     type: String,
-    required: true,
-    unique: true
+    required: [true, 'Email é obrigatório'],
+    unique: true,
+    trim: true,
+    lowercase: true,
+    match: [/^\S+@\S+\.\S+$/, 'Email inválido']
   },
   password: {
     type: String,
-    required: true
+    required: [true, 'Senha é obrigatória'],
+    minlength: [6, 'Senha deve ter no mínimo 6 caracteres']
   },
   phone: {
     type: String,
-    required: true
+    required: [true, 'Telefone é obrigatório'],
+    trim: true
   },
   role: {
     type: String,
-    enum: ['user', 'driver', 'admin'],
-    default: 'user'
+    enum: ['passenger', 'driver', 'admin'],
+    default: 'passenger'
   },
   vehicle: {
     model: String,
@@ -36,7 +43,7 @@ const userSchema = new mongoose.Schema({
   isApproved: {
     type: Boolean,
     default: function() {
-      return this.role === 'user'; // Passageiros são aprovados automaticamente
+      return this.role === 'passenger'; // Passageiros são aprovados automaticamente
     }
   },
   createdAt: {
@@ -62,6 +69,8 @@ const userSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// Índices
+userSchema.index({ email: 1 }, { unique: true });
 userSchema.index({ location: '2dsphere' });
 
 module.exports = mongoose.model('User', userSchema); 

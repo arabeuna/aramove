@@ -66,20 +66,24 @@ router.patch('/location', auth, async (req, res) => {
 
 router.patch('/availability', auth, async (req, res) => {
   try {
-    const { isAvailable } = req.body;
-    
-    if (req.user.role !== 'driver') {
-      return res.status(403).json({ message: 'Apenas motoristas podem atualizar disponibilidade' });
-    }
+    console.log('Atualizando disponibilidade:', {
+      userId: req.user._id,
+      isAvailable: req.body.isAvailable
+    });
 
-    const user = await User.findById(req.user.id);
-    user.isAvailable = isAvailable;
-    await user.save();
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      { isAvailable: req.body.isAvailable },
+      { new: true }
+    );
 
-    res.json({ message: 'Disponibilidade atualizada com sucesso' });
+    res.json({
+      success: true,
+      isAvailable: user.isAvailable
+    });
   } catch (error) {
     console.error('Erro ao atualizar disponibilidade:', error);
-    res.status(500).json({ message: 'Erro ao atualizar disponibilidade' });
+    res.status(500).json({ error: 'Erro ao atualizar disponibilidade' });
   }
 });
 

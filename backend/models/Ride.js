@@ -8,56 +8,76 @@ const rideSchema = new mongoose.Schema({
   },
   driver: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    ref: 'User',
+    required: function() {
+      return this.status === 'accepted' || this.status === 'in_progress' || this.status === 'completed';
+    }
   },
   origin: {
     type: {
-      type: String,
-      enum: ['Point'],
-      required: true
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+        required: true
+      },
+      address: {
+        type: String,
+        required: true
+      }
     },
-    coordinates: {
-      type: [Number], // [longitude, latitude]
-      required: true
-    },
-    address: String
+    required: true
   },
   destination: {
     type: {
-      type: String,
-      enum: ['Point'],
-      required: true
+      coordinates: {
+        type: [Number], // [longitude, latitude]
+        required: true
+      },
+      address: {
+        type: String,
+        required: true
+      }
     },
-    coordinates: {
-      type: [Number], // [longitude, latitude]
-      required: true
-    },
-    address: String
+    required: true
   },
   status: {
     type: String,
     enum: ['pending', 'accepted', 'in_progress', 'completed', 'cancelled'],
     default: 'pending'
   },
+  price: {
+    type: Number,
+    required: true
+  },
   distance: Number,
   duration: Number,
-  price: Number,
+  paymentMethod: {
+    type: String,
+    enum: ['cash', 'credit_card', 'pix']
+  },
+  startTime: Date,
+  endTime: Date,
   createdAt: {
     type: Date,
     default: Date.now
   }
+}, {
+  timestamps: true
 });
 
-// Garante que os índices são criados
-rideSchema.index({ 'origin.coordinates': '2dsphere' });
-rideSchema.index({ 'destination.coordinates': '2dsphere' });
+// Índices
+rideSchema.index({ 'origin.location': '2dsphere' });
+rideSchema.index({ 'destination.location': '2dsphere' });
+rideSchema.index({ status: 1 });
+rideSchema.index({ driver: 1, status: 1 });
+rideSchema.index({ passenger: 1, status: 1 });
 
-// Middleware para garantir que o tipo Point seja definido
+// Middleware para validar o driver
 rideSchema.pre('save', function(next) {
-  if (!this.origin.type) this.origin.type = 'Point';
-  if (!this.destination.type) this.destination.type = 'Point';
+  if (this.status === 'accepted' && !this.driver) {
+    next(new Error('Driver is required when status is accepted'));
+  }
   next();
 });
 
-// Exporta o modelo apenas se ainda não existir
-module.exports = mongoose.models.Ride || mongoose.model('Ride', rideSchema); 
+const Ride = mongoose.model('Ride', rideSchema);
+module.exports = Ride; 

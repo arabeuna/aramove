@@ -19,7 +19,8 @@
     "express": "^4.18.2",
     "helmet": "^7.2.0",
     "jsonwebtoken": "^9.0.0",
-    "mongoose": "^7.0.0"
+    "mongoose": "^7.0.0",
+    "react-icons": "^5.5.0"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"

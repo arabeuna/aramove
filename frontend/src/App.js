@@ -1,29 +1,24 @@
 import React from 'react';
-import { BrowserRouter as Router } from 'react-router-dom';
+import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import { MessageProvider } from './contexts/MessageContext';
-import AppRoutes from './routes';
-import Navbar from './components/Navbar';
-import { LoadScript } from '@react-google-maps/api';
+import AppRoutes from './routes/index';
+import ErrorBoundary from './components/ErrorBoundary';
 
-function App() {
+export default function App() {
   return (
-    <Router>
-      <AuthProvider>
-        <MessageProvider>
-          <LoadScript
-            googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}
-            libraries={["places"]}
-          >
-            <div className="min-h-screen bg-gray-50">
-              <Navbar />
-              <AppRoutes />
-            </div>
-          </LoadScript>
-        </MessageProvider>
-      </AuthProvider>
-    </Router>
+    <BrowserRouter
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true
+      }}
+    >
+      <ErrorBoundary>
+        <AuthProvider>
+          <div className="min-h-screen bg-gray-50">
+            <AppRoutes />
+          </div>
+        </AuthProvider>
+      </ErrorBoundary>
+    </BrowserRouter>
   );
-}
-
-export default App; 
+} 

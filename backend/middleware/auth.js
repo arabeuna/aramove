@@ -21,42 +21,44 @@ setInterval(cleanExpiredCache, CACHE_DURATION);
 
 const auth = async (req, res, next) => {
   try {
-    // Melhorar a detecção do token
-    const token = req.header('Authorization')?.split(' ')[1] || 
-                 req.query.token || 
-                 req.cookies?.token;
+    // Rotas públicas que não precisam de autenticação
+    const publicRoutes = [
+      '/api/auth/login',
+      '/api/auth/register',
+      '/api/driver-register', // Adicionar rota de registro de motorista como pública
+      '/health'
+    ];
+
+    if (publicRoutes.includes(req.path)) {
+      return next();
+    }
+
+    const token = req.header('Authorization')?.replace('Bearer ', '');
+    
+    // Debug
+    console.log('Token recebido:', token);
+    console.log('Headers:', req.headers);
 
     if (!token) {
       console.log('Token não fornecido');
-      return res.status(401).json({ 
-        error: 'Autenticação necessária',
-        details: 'Token não fornecido'
-      });
+      return res.status(401).json({ message: 'Token não fornecido' });
     }
 
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await User.findById(decoded.id || decoded.userId);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('Token decodificado:', decoded);
 
-      if (!user) {
-        return res.status(401).json({ 
-          error: 'Usuário não encontrado' 
-        });
-      }
-
-      req.user = user;
-      req.token = token;
-      next();
-    } catch (err) {
-      console.error('Erro na verificação do token:', err);
-      return res.status(401).json({ 
-        error: 'Token inválido',
-        details: process.env.NODE_ENV === 'development' ? err.message : undefined
-      });
+    const user = await User.findById(decoded.userId || decoded.id);
+    if (!user) {
+      console.log('Usuário não encontrado');
+      return res.status(401).json({ message: 'Usuário não encontrado' });
     }
+
+    req.user = user;
+    req.token = token;
+    next();
   } catch (error) {
-    console.error('Erro no middleware de autenticação:', error);
-    res.status(500).json({ error: 'Erro interno do servidor' });
+    console.error('Erro na autenticação:', error);
+    res.status(401).json({ message: 'Token inválido' });
   }
 };
 

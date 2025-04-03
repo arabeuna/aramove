@@ -1,17 +1,16 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { register } from '../services/auth';
+import api from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
-import logo from '../assets/images/logo.png';
 
 export default function DriverRegister() {
   const navigate = useNavigate();
+  const { register } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
     phone: '',
-    role: 'driver',
     vehicle: {
       model: '',
       plate: '',
@@ -32,11 +31,19 @@ export default function DriverRegister() {
     setError('');
 
     try {
-      await register(formData);
-      alert('Cadastro realizado com sucesso! Aguarde a aprovação.');
-      navigate('/login');
-    } catch (err) {
-      setError(err.message);
+      console.log('Enviando dados:', formData);
+      const response = await api.post('/drivers/register', formData);
+      console.log('Resposta:', response.data);
+      
+      if (response.data.token) {
+        localStorage.setItem('token', response.data.token);
+        localStorage.setItem('user', JSON.stringify(response.data.user));
+      }
+      
+      navigate('/driver/pending');
+    } catch (error) {
+      console.error('Erro no registro:', error);
+      setError(error.response?.data?.message || 'Erro ao registrar motorista');
     } finally {
       setLoading(false);
     }
@@ -49,51 +56,47 @@ export default function DriverRegister() {
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
             Cadastro de Motorista
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Ou{' '}
-            <Link to="/register/passenger" className="font-medium text-indigo-600 hover:text-indigo-500">
-              cadastre-se como passageiro
-            </Link>
-          </p>
         </div>
-        
+
+        {error && (
+          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+            {error}
+          </div>
+        )}
+
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          {/* Dados pessoais */}
-          <div className="space-y-4">
+          {/* Dados Pessoais */}
+          <div>
             <h3 className="text-lg font-medium text-gray-900">Dados Pessoais</h3>
-            <div className="rounded-md shadow-sm -space-y-px">
+            <div className="mt-3 space-y-3">
               <input
-                name="name"
                 type="text"
                 required
-                className="appearance-none rounded-t-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 placeholder="Nome completo"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               />
               <input
-                name="email"
                 type="email"
                 required
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 placeholder="Email"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
               <input
-                name="password"
                 type="password"
                 required
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 placeholder="Senha"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               />
               <input
-                name="phone"
                 type="tel"
                 required
-                className="appearance-none rounded-b-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 placeholder="Telefone"
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
@@ -101,15 +104,14 @@ export default function DriverRegister() {
             </div>
           </div>
 
-          {/* Dados do veículo */}
-          <div className="space-y-4">
+          {/* Dados do Veículo */}
+          <div>
             <h3 className="text-lg font-medium text-gray-900">Dados do Veículo</h3>
-            <div className="rounded-md shadow-sm -space-y-px">
+            <div className="mt-3 space-y-3">
               <input
-                name="vehicle.model"
                 type="text"
                 required
-                className="appearance-none rounded-t-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 placeholder="Modelo do veículo"
                 value={formData.vehicle.model}
                 onChange={(e) => setFormData({
@@ -118,10 +120,9 @@ export default function DriverRegister() {
                 })}
               />
               <input
-                name="vehicle.plate"
                 type="text"
                 required
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 placeholder="Placa"
                 value={formData.vehicle.plate}
                 onChange={(e) => setFormData({
@@ -130,10 +131,9 @@ export default function DriverRegister() {
                 })}
               />
               <input
-                name="vehicle.year"
-                type="number"
+                type="text"
                 required
-                className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 placeholder="Ano"
                 value={formData.vehicle.year}
                 onChange={(e) => setFormData({
@@ -142,10 +142,9 @@ export default function DriverRegister() {
                 })}
               />
               <input
-                name="vehicle.color"
                 type="text"
                 required
-                className="appearance-none rounded-b-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 placeholder="Cor"
                 value={formData.vehicle.color}
                 onChange={(e) => setFormData({
@@ -157,14 +156,13 @@ export default function DriverRegister() {
           </div>
 
           {/* Documentos */}
-          <div className="space-y-4">
+          <div>
             <h3 className="text-lg font-medium text-gray-900">Documentos</h3>
-            <div className="rounded-md shadow-sm -space-y-px">
+            <div className="mt-3 space-y-3">
               <input
-                name="documents.cnh"
                 type="text"
                 required
-                className="appearance-none rounded-t-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 placeholder="CNH"
                 value={formData.documents.cnh}
                 onChange={(e) => setFormData({
@@ -173,10 +171,9 @@ export default function DriverRegister() {
                 })}
               />
               <input
-                name="documents.cpf"
                 type="text"
                 required
-                className="appearance-none rounded-b-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+                className="appearance-none rounded relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 placeholder="CPF"
                 value={formData.documents.cpf}
                 onChange={(e) => setFormData({
@@ -187,22 +184,22 @@ export default function DriverRegister() {
             </div>
           </div>
 
-          {error && (
-            <div className="text-red-500 text-sm text-center">
-              {error}
-            </div>
-          )}
-
           <div>
             <button
               type="submit"
               disabled={loading}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >
-              {loading ? 'Cadastrando...' : 'Cadastrar como Motorista'}
+              {loading ? 'Registrando...' : 'Registrar como Motorista'}
             </button>
           </div>
         </form>
+
+        <div className="text-sm text-center mt-4">
+          <Link to="/register" className="font-medium text-indigo-600 hover:text-indigo-500">
+            Voltar para registro normal
+          </Link>
+        </div>
       </div>
     </div>
   );

@@ -9,17 +9,30 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Log para debug
+app.use((req, res, next) => {
+  console.log('Requisição recebida:', {
+    method: req.method,
+    path: req.path,
+    body: req.body,
+    headers: req.headers
+  });
+  next();
+});
+
 // Rotas
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const userRoutes = require('./routes/userRoutes');
 const rideRoutes = require('./routes/rideRoutes');
+const driverRoutes = require('./routes/driverRoutes');
 
 // Aplica as rotas
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/rides', rideRoutes);
+app.use('/api/drivers', driverRoutes);
 
 // Conexão com MongoDB
 mongoose.connect(process.env.MONGODB_URI)

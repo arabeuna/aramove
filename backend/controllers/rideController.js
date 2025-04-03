@@ -1,44 +1,53 @@
 const Ride = require('../models/Ride');
 const User = require('../models/User');
+const Driver = require('../models/Driver');
+const mongoose = require('mongoose');
 
 exports.requestRide = async (req, res) => {
   try {
-    console.log('\n=== DEBUG CRIAÇÃO DE CORRIDA ===');
-    console.log('1. Dados recebidos:', req.body);
-    
+    const {
+      origin,
+      destination,
+      paymentMethod,
+      price,
+      distance,
+      duration
+    } = req.body;
+
     const ride = new Ride({
       passenger: req.user.id,
-      origin: {
-        type: 'Point',
-        coordinates: [req.body.origin.lng, req.body.origin.lat],
-        address: req.body.origin.address
-      },
-      destination: {
-        type: 'Point',
-        coordinates: [req.body.destination.lng, req.body.destination.lat],
-        address: req.body.destination.address
-      },
-      status: 'pending',
-      distance: req.body.distance,
-      duration: req.body.duration,
-      price: req.body.price
-    });
-
-    console.log('2. Corrida a ser salva:', {
-      passenger: ride.passenger,
-      origin: ride.origin,
-      destination: ride.destination,
-      status: ride.status
+      origin,
+      destination,
+      paymentMethod,
+      price,
+      distance,
+      duration
     });
 
     await ride.save();
-    console.log('3. Corrida salva com sucesso:', ride._id);
-    console.log('=== FIM DEBUG ===\n');
 
-    res.status(201).json(ride);
+    // Buscar motoristas próximos
+    const nearbyDrivers = await Driver.find({
+      'status.isAvailable': true,
+      'status.isApproved': true,
+      location: {
+        $near: {
+          $geometry: origin.location,
+          $maxDistance: 5000 // 5km
+        }
+      }
+    }).populate('user');
+
+    // Emitir evento para motoristas próximos
+    // TODO: Implementar Socket.IO
+
+    res.status(201).json({
+      ride,
+      nearbyDrivers: nearbyDrivers.length
+    });
   } catch (error) {
-    console.error('Erro ao criar corrida:', error);
-    res.status(500).json({ message: 'Erro ao criar corrida' });
+    console.error('Erro ao solicitar corrida:', error);
+    res.status(500).json({ message: 'Erro ao solicitar corrida' });
   }
 };
 
@@ -68,64 +77,99 @@ exports.getNearbyDrivers = async (req, res) => {
 
 exports.acceptRide = async (req, res) => {
   try {
-    const ride = await Ride.findOneAndUpdate(
-      {
-        _id: req.params.rideId,
-        status: 'pending'
-      },
-      {
-        driver: req.user.id,
-        status: 'accepted'
-      },
-      { new: true }
-    ).populate('passenger', 'name phone')
-      .populate('driver', 'name phone vehicle');
+    const { id } = req.params;
+    const { driverId } = req.body;
 
-    if (!ride) {
-      return res.status(404).json({ message: 'Corrida não encontrada ou já aceita' });
-    }
+    console.log('Tentando aceitar corrida:', {
+      rideId: id,
+      driverId,
+      body: req.body
+    });
 
-    res.json(ride);
-  } catch (error) {
-    console.error('Erro ao aceitar corrida:', error);
-    res.status(500).json({ message: 'Erro ao aceitar corrida' });
-  }
-};
-
-exports.completeRide = async (req, res) => {
-  try {
-    const ride = await Ride.findById(req.params.rideId);
+    const ride = await Ride.findById(id);
     
     if (!ride) {
       return res.status(404).json({ message: 'Corrida não encontrada' });
     }
 
-    if (ride.status !== 'in_progress') {
-      return res.status(400).json({ message: 'Corrida precisa estar em andamento para ser finalizada' });
+    if (ride.status !== 'pending') {
+      return res.status(400).json({ message: 'Corrida não está mais disponível' });
     }
 
-    if (ride.driver.toString() !== req.user.id) {
-      return res.status(403).json({ message: 'Apenas o motorista designado pode finalizar a corrida' });
+    // Tratamento especial para o motorista mockado
+    if (driverId === '507f1f77bcf86cd799439011') {
+      ride.driver = driverId;
+      ride.status = 'accepted';
+      await ride.save();
+
+      const mockDriver = {
+        _id: driverId,
+        name: 'João Motorista',
+        rating: 4.8,
+        vehicle: {
+          model: 'Toyota Corolla',
+          color: 'Prata',
+          plate: 'ABC-1234'
+        }
+      };
+
+      return res.json({
+        ...ride.toObject(),
+        driver: mockDriver
+      });
     }
 
-    // Atualiza o status e horário de término
+    // Caso não seja o motorista mockado, verificar disponibilidade
+    const driver = await User.findById(driverId);
+    if (!driver || !driver.isAvailable) {
+      return res.status(400).json({ message: 'Motorista não está disponível' });
+    }
+
+    ride.driver = driverId;
+    ride.status = 'accepted';
+    await ride.save();
+
+    res.json(ride);
+
+  } catch (error) {
+    console.error('Erro ao aceitar corrida:', error);
+    res.status(500).json({ 
+      message: 'Erro ao aceitar corrida',
+      error: error.message 
+    });
+  }
+};
+
+exports.completeRide = async (req, res) => {
+  try {
+    const { rideId } = req.params;
+    console.log('Finalizando corrida:', rideId); // Debug
+
+    const ride = await Ride.findById(rideId);
+    if (!ride) {
+      console.log('Corrida não encontrada:', rideId); // Debug
+      return res.status(404).json({ message: 'Corrida não encontrada' });
+    }
+
+    // Log do estado atual
+    console.log('Estado atual da corrida:', {
+      status: ride.status,
+      passenger: ride.passenger,
+      driver: ride.driver,
+      requestingUser: req.user.id
+    });
+
     ride.status = 'completed';
     ride.endTime = new Date();
     await ride.save();
 
-    // Garante que o motorista fique disponível novamente
-    await User.findByIdAndUpdate(req.user.id, { 
-      isAvailable: true,
-      $unset: { currentRide: 1 } // Remove referência à corrida atual se existir
-    });
-
-    res.json({ 
-      ...ride.toObject(),
-      message: 'Corrida finalizada com sucesso'
-    });
+    res.json(ride);
   } catch (error) {
     console.error('Erro ao finalizar corrida:', error);
-    res.status(500).json({ message: 'Erro ao finalizar corrida' });
+    res.status(500).json({ 
+      message: 'Erro ao finalizar corrida',
+      error: error.message 
+    });
   }
 };
 
@@ -149,29 +193,16 @@ exports.cancelRide = async (req, res) => {
 
 exports.startRide = async (req, res) => {
   try {
-    const ride = await Ride.findById(req.params.rideId);
-    
+    const { rideId } = req.params;
+    const ride = await Ride.findById(rideId);
+
     if (!ride) {
       return res.status(404).json({ message: 'Corrida não encontrada' });
-    }
-
-    if (ride.status !== 'accepted') {
-      return res.status(400).json({ 
-        message: 'Corrida precisa estar aceita para ser iniciada' 
-      });
-    }
-
-    if (ride.driver.toString() !== req.user.id) {
-      return res.status(403).json({ message: 'Apenas o motorista designado pode iniciar a corrida' });
     }
 
     ride.status = 'in_progress';
     ride.startTime = new Date();
     await ride.save();
-
-    // Popula os dados necessários
-    await ride.populate('passenger', 'name phone');
-    await ride.populate('driver', 'name phone vehicle location');
 
     res.json(ride);
   } catch (error) {
@@ -317,5 +348,139 @@ exports.getCurrentRide = async (req, res) => {
   } catch (error) {
     console.error('Erro ao buscar corrida atual:', error);
     res.status(500).json({ message: 'Erro ao buscar corrida atual' });
+  }
+};
+
+exports.finishRide = async (req, res) => {
+  try {
+    const { rideId } = req.params;
+    const ride = await Ride.findById(rideId);
+
+    if (!ride) {
+      return res.status(404).json({ message: 'Corrida não encontrada' });
+    }
+
+    ride.status = 'completed';
+    ride.endTime = new Date();
+    await ride.save();
+
+    res.json(ride);
+  } catch (error) {
+    console.error('Erro ao finalizar corrida:', error);
+    res.status(500).json({ message: 'Erro ao finalizar corrida' });
+  }
+};
+
+exports.createRide = async (req, res) => {
+  try {
+    console.log('Criando corrida:', req.body); // Debug
+
+    const { origin, destination, price } = req.body;
+
+    // Validar dados
+    if (!origin?.coordinates || !destination?.coordinates || !price) {
+      return res.status(400).json({ 
+        message: 'Dados inválidos',
+        required: ['origin.coordinates', 'destination.coordinates', 'price']
+      });
+    }
+
+    // Criar corrida
+    const ride = new Ride({
+      passenger: req.user.id,
+      origin: {
+        coordinates: origin.coordinates,
+        address: origin.address
+      },
+      destination: {
+        coordinates: destination.coordinates,
+        address: destination.address
+      },
+      price,
+      status: 'pending'
+    });
+
+    await ride.save();
+    console.log('Corrida criada:', ride); // Debug
+
+    res.status(201).json(ride);
+  } catch (error) {
+    console.error('Erro ao criar corrida:', error);
+    res.status(500).json({ 
+      message: 'Erro ao criar corrida',
+      error: error.message 
+    });
+  }
+};
+
+exports.getRideHistory = async (req, res) => {
+  try {
+    const { role } = req.user;
+    const { status, limit = 10, page = 1 } = req.query;
+    const skip = (page - 1) * limit;
+
+    // Construir query base
+    const query = {
+      [role === 'driver' ? 'driver' : 'passenger']: req.user.id
+    };
+
+    // Filtrar por status se fornecido
+    if (status) {
+      query.status = status;
+    }
+
+    // Buscar corridas com paginação
+    const rides = await Ride.find(query)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(parseInt(limit))
+      .populate('passenger', 'name')
+      .populate('driver', 'name vehicle rating')
+      .select('-__v');
+
+    // Contar total para paginação
+    const total = await Ride.countDocuments(query);
+
+    res.json({
+      rides,
+      pagination: {
+        total,
+        pages: Math.ceil(total / limit),
+        currentPage: page,
+        perPage: limit
+      }
+    });
+
+  } catch (error) {
+    console.error('Erro ao buscar histórico:', error);
+    res.status(500).json({ message: 'Erro ao buscar histórico' });
+  }
+};
+
+exports.getRideDetails = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const ride = await Ride.findById(id)
+      .populate('passenger', 'name phone')
+      .populate('driver', 'name phone vehicle rating')
+      .populate({
+        path: 'rating',
+        select: 'stars comment tags'
+      });
+
+    if (!ride) {
+      return res.status(404).json({ message: 'Corrida não encontrada' });
+    }
+
+    // Verificar se o usuário tem permissão para ver esta corrida
+    if (ride.passenger._id.toString() !== req.user.id && 
+        ride.driver?._id.toString() !== req.user.id) {
+      return res.status(403).json({ message: 'Sem permissão' });
+    }
+
+    res.json(ride);
+  } catch (error) {
+    console.error('Erro ao buscar detalhes da corrida:', error);
+    res.status(500).json({ message: 'Erro ao buscar detalhes da corrida' });
   }
 }; 

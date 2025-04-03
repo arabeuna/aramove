@@ -1,64 +1,45 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://localhost:5000/api',
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json'
-  }
+  baseURL: 'http://localhost:5000/api'  // Já inclui /api
 });
 
-// Adiciona o token em todas as requisições
+// Adicionar token em todas as requisições
 api.interceptors.request.use(config => {
   const token = localStorage.getItem('token');
-  const user = JSON.parse(localStorage.getItem('user'));
   
-  console.log('Configuração da requisição:', {
-    url: config.url,
-    method: config.method,
-    token: token ? 'Bearer ' + token : 'No token',
-    userRole: user?.role
-  });
-
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
+    console.log('Token enviado:', token);
+  } else {
+    console.warn('Token não encontrado no localStorage');
   }
+  
   return config;
+}, error => {
+  return Promise.reject(error);
 });
 
-// Interceptor para respostas
+// Tratamento de erros
 api.interceptors.response.use(
-  response => {
-    // Log da resposta bem-sucedida
-    console.log('Resposta recebida:', {
-      status: response.status,
-      data: response.data,
-      headers: response.headers,
-      timestamp: new Date().toISOString()
-    });
-    return response;
-  },
+  response => response,
   error => {
-    // Log detalhado do erro
-    const errorDetails = {
-      message: error.message,
-      code: error.code,
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      data: error.response?.data,
-      request: {
-        method: error.config?.method,
-        url: error.config?.url,
-        data: error.config?.data,
-        headers: error.config?.headers
-      },
-      timestamp: new Date().toISOString()
-    };
-
-    console.error('Erro na API:', errorDetails);
+    if (error.response?.status === 401) {
+      // Apenas redirecionar se não estiver em uma rota de autenticação
+      const authRoutes = ['/login', '/register', '/driver-register'];
+      if (!authRoutes.some(route => window.location.pathname.includes(route))) {
+        console.log('Token inválido, redirecionando para login');
+        localStorage.clear();
+        window.location.href = '/login';
+      }
+    }
+    console.error('Erro na requisição:', error);
     return Promise.reject(error);
   }
 );
+
+export const clearApiToken = () => {
+  delete api.defaults.headers.common['Authorization'];
+};
 
 export default api; 

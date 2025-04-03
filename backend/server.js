@@ -5,21 +5,60 @@ const path = require('path');
 const helmet = require('helmet');
 const compression = require('compression');
 require('dotenv').config();
+const security = require('./middleware/security');
+const cookieConfig = require('./middleware/cookieConfig');
 
 const app = express();
 
 // Security Middleware
-app.use(helmet());
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? process.env.FRONTEND_URL 
-    : 'http://localhost:3000',
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://apis.google.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      imgSrc: ["'self'", "data:", "https:", "blob:"],
+      connectSrc: ["'self'", "https://apis.google.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: [
+        "'self'",
+        "https://accounts.google.com",
+        "https://drive.google.com"
+      ],
+      frameAncestors: ["'self'"],
+      sandbox: ['allow-same-origin', 'allow-scripts', 'allow-forms', 'allow-popups']
+    }
+  },
+  crossOriginEmbedderPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
+
+// Configuração mais detalhada do CORS
+app.use(cors({
+  origin: 'http://localhost:3000',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
 app.use(compression());
 app.use(express.json());
+
+// Aplicar middlewares
+app.use(security);
+app.use(cookieConfig);
+
+// Adicionar middleware para logging de requisições
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path}`, {
+    body: req.body,
+    query: req.query,
+    headers: req.headers
+  });
+  next();
+});
 
 // Conexão com MongoDB com retry
 const connectDB = async (retries = 5) => {
@@ -52,6 +91,8 @@ app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/rides', require('./routes/rideRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 app.use('/api/messages', require('./routes/messageRoutes'));
+app.use('/api/drivers', require('./routes/driverRoutes'));
+app.use('/api/ratings', require('./routes/ratingRoutes'));
 
 // Health Check
 app.get('/health', (req, res) => {

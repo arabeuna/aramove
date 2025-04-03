@@ -4,53 +4,31 @@ const bcrypt = require('bcryptjs');
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
-    required: [true, 'Nome é obrigatório'],
-    trim: true
+    required: true
   },
   email: {
     type: String,
-    required: [true, 'Email é obrigatório'],
+    required: true,
     unique: true,
-    trim: true,
-    lowercase: true,
-    match: [/^\S+@\S+\.\S+$/, 'Email inválido']
+    lowercase: true
   },
   password: {
     type: String,
-    required: [true, 'Senha é obrigatória'],
-    minlength: [6, 'Senha deve ter no mínimo 6 caracteres']
+    required: true
   },
   phone: {
     type: String,
-    required: [true, 'Telefone é obrigatório'],
-    trim: true
+    required: true
   },
-  role: {
-    type: String,
-    enum: ['passenger', 'driver', 'admin'],
-    default: 'passenger'
-  },
-  vehicle: {
-    model: String,
-    plate: String,
-    year: String,
-    color: String
-  },
-  documents: {
-    cnh: String,
-    cpf: String
+  isAvailable: {
+    type: Boolean,
+    default: false
   },
   isApproved: {
     type: Boolean,
-    default: function() {
-      return this.role === 'passenger'; // Passageiros são aprovados automaticamente
-    }
+    default: false
   },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  isAvailable: {
+  isOnline: {
     type: Boolean,
     default: false
   },
@@ -62,15 +40,40 @@ const userSchema = new mongoose.Schema({
     },
     coordinates: {
       type: [Number],
-      default: [0, 0]
+      default: [-46.6333, -23.5505] // São Paulo
     }
+  },
+  role: {
+    type: String,
+    enum: ['user', 'driver', 'admin'],
+    default: 'user'
   }
 }, {
   timestamps: true
 });
 
-// Índices
+// Índice para email
 userSchema.index({ email: 1 }, { unique: true });
+
+// Índice para localização
 userSchema.index({ location: '2dsphere' });
 
-module.exports = mongoose.model('User', userSchema); 
+// Hash da senha antes de salvar
+userSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) return next();
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+  next();
+});
+
+// Método para comparar senhas
+userSchema.methods.comparePassword = async function(candidatePassword) {
+  try {
+    return await bcrypt.compare(candidatePassword, this.password);
+  } catch (error) {
+    throw error;
+  }
+};
+
+const User = mongoose.model('User', userSchema);
+module.exports = User; 

@@ -26,3 +26,28 @@ api.interceptors.response.use(
 );
 
 export default api; 
+
+async function makeRequest(method, endpoint, data) {
+  const token = localStorage.getItem('token');
+  try {
+    const response = await axios({
+      method,
+      url: `${process.env.REACT_APP_API_URL}${endpoint}`,
+      data,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+      }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('API Error:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status
+    });
+    throw error;
+  }
+}
+
+export { makeRequest }; 

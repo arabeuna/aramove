@@ -1,7 +1,13 @@
 import axios from 'axios';
 
+// Add a check for the API URL
+const API_URL = process.env.REACT_APP_API_URL;
+if (!API_URL) {
+  console.error('REACT_APP_API_URL is not defined in environment variables');
+}
+
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL + '/api'
+  baseURL: `${API_URL}/api`
 });
 
 api.interceptors.request.use(config => {
@@ -30,9 +36,13 @@ export default api;
 async function makeRequest(method, endpoint, data) {
   const token = localStorage.getItem('token');
   try {
+    if (!API_URL) {
+      throw new Error('API URL is not configured');
+    }
+    
     const response = await axios({
       method,
-      url: `${process.env.REACT_APP_API_URL}/api${endpoint}`,
+      url: `${API_URL}/api${endpoint}`,
       data,
       headers: {
         'Content-Type': 'application/json',
@@ -46,7 +56,8 @@ async function makeRequest(method, endpoint, data) {
       endpoint,
       response: error.response?.data,
       status: error.response?.status,
-      url: error.config?.url
+      url: error.config?.url,
+      apiUrl: API_URL // Add this for debugging
     });
     throw error;
   }

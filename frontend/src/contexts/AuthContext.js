@@ -66,10 +66,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    const userType = user?.userType || 'passenger'; // Guarda o userType antes de limpar
     setUser(null);
     localStorage.removeItem('user');
     localStorage.removeItem('token');
-    window.location.href = '/login/' + (user?.userType || 'passenger');
+    window.location.href = '/login/' + userType;
   };
 
   return (

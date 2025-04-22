@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: (process.env.REACT_APP_API_URL || 'http://localhost:5000') + '/api'
+  baseURL: process.env.REACT_APP_API_URL + '/api'
 });
 
 api.interceptors.request.use(config => {
@@ -32,7 +32,7 @@ async function makeRequest(method, endpoint, data) {
   try {
     const response = await axios({
       method,
-      url: `${process.env.REACT_APP_API_URL}${endpoint}`,
+      url: `${process.env.REACT_APP_API_URL}/api${endpoint}`,
       data,
       headers: {
         'Content-Type': 'application/json',
@@ -43,8 +43,10 @@ async function makeRequest(method, endpoint, data) {
   } catch (error) {
     console.error('API Error:', {
       message: error.message,
+      endpoint,
       response: error.response?.data,
-      status: error.response?.status
+      status: error.response?.status,
+      url: error.config?.url
     });
     throw error;
   }

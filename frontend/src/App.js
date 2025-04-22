@@ -10,6 +10,7 @@ import PassengerLayout from './layouts/PassengerLayout';
 import 'react-toastify/dist/ReactToastify.css';
 import { Toaster } from 'react-hot-toast';
 import { PrivateRoute, PublicOnlyRoute } from './components/PrivateRoute';
+import { DriverProvider } from './driver/contexts/DriverContext';
 
 // Páginas de autenticação
 import DriverLogin from './pages/auth/driver/Login';
@@ -44,57 +45,59 @@ function App() {
     >
       <AuthProvider>
         <SocketProvider>
-          <Routes>
-            <Route path="/" element={<Navigate to="/login/passenger" replace />} />
-            
-            <Route path="/login/:userType" element={
-              <PublicOnlyRoute>
-                <AuthLayout />
-              </PublicOnlyRoute>
-            }>
-              <Route index element={<Login />} />
-            </Route>
+          <DriverProvider>
+            <Routes>
+              <Route path="/" element={<Navigate to="/login/passenger" replace />} />
+              
+              <Route path="/login/:userType" element={
+                <PublicOnlyRoute>
+                  <AuthLayout />
+                </PublicOnlyRoute>
+              }>
+                <Route index element={<Login />} />
+              </Route>
 
-            <Route path="/register/:userType" element={
-              <PublicOnlyRoute>
-                <AuthLayout />
-              </PublicOnlyRoute>
-            }>
-              <Route index element={<Register />} />
-            </Route>
+              <Route path="/register/:userType" element={
+                <PublicOnlyRoute>
+                  <AuthLayout />
+                </PublicOnlyRoute>
+              }>
+                <Route index element={<Register />} />
+              </Route>
 
-            <Route path="/passenger/*" element={
-              <PrivateRoute>
-                <PassengerLayout />
-              </PrivateRoute>
-            }>
-              <Route index element={<RideRequest />} />
-              <Route path="rides" element={<PassengerRides />} />
-              <Route path="rides/:rideId" element={<RideTracking />} />
-              <Route path="profile" element={<PassengerProfile />} />
-            </Route>
+              <Route path="/passenger/*" element={
+                <PrivateRoute>
+                  <PassengerLayout />
+                </PrivateRoute>
+              }>
+                <Route index element={<RideRequest />} />
+                <Route path="rides" element={<PassengerRides />} />
+                <Route path="rides/:rideId" element={<RideTracking />} />
+                <Route path="profile" element={<PassengerProfile />} />
+              </Route>
 
-            <Route path="/driver/*" element={
-              <PrivateRoute>
-                <DriverLayout />
-              </PrivateRoute>
-            }>
-              <Route index element={<DriverHome />} />
-              <Route path="rides" element={<DriverRides />} />
-              <Route path="earnings" element={<DriverEarnings />} />
-            </Route>
-          </Routes>
-          <ToastContainer />
-          <Toaster
-            position="top-right"
-            toastOptions={{
-              duration: 4000,
-              style: {
-                background: '#363636',
-                color: '#fff',
-              }
-            }}
-          />
+              <Route path="/driver/*" element={
+                <PrivateRoute>
+                  <DriverLayout />
+                </PrivateRoute>
+              }>
+                <Route index element={<DriverHome />} />
+                <Route path="rides" element={<DriverRides />} />
+                <Route path="earnings" element={<DriverEarnings />} />
+              </Route>
+            </Routes>
+            <ToastContainer />
+            <Toaster
+              position="top-right"
+              toastOptions={{
+                duration: 4000,
+                style: {
+                  background: '#363636',
+                  color: '#fff',
+                }
+              }}
+            />
+          </DriverProvider>
         </SocketProvider>
       </AuthProvider>
     </LoadScript>

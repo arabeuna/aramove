@@ -1,27 +1,43 @@
 const logger = {
+  logHistory: [],
+
   log: (...args) => {
     console.log('[Move]', ...args);
-    logHistory.push({type: 'log', message: args, timestamp: new Date()});
+    logger.logHistory.push({
+      type: 'log',
+      message: args,
+      timestamp: new Date()
+    });
   },
 
   error: (...args) => {
     console.error('[Move Error]', ...args);
-    logHistory.push({type: 'error', message: args, timestamp: new Date()});
+    logger.logHistory.push({
+      type: 'error',
+      message: args,
+      timestamp: new Date()
+    });
   },
 
   warn: (...args) => {
     console.warn('[Move Warning]', ...args);
-    logHistory.push({type: 'warn', message: args, timestamp: new Date()});
+    logger.logHistory.push({
+      type: 'warn',
+      message: args,
+      timestamp: new Date()
+    });
   },
 
   debug: (...args) => {
     if (process.env.NODE_ENV !== 'production') {
       console.debug('[Move Debug]', ...args);
-      logHistory.push({type: 'debug', message: args, timestamp: new Date()});
+      logger.logHistory.push({
+        type: 'debug',
+        message: args,
+        timestamp: new Date()
+      });
     }
   },
-
-  logHistory: [],
 
   checkEnvironment: () => {
     const env = {
@@ -33,8 +49,7 @@ const logger = {
         width: window.innerWidth,
         height: window.innerHeight
       },
-      connection: navigator.connection?.type || 'unknown',
-      permissions: {}
+      connection: navigator.connection?.type || 'unknown'
     };
 
     logger.debug('Environment check:', env);

@@ -221,7 +221,7 @@ module.exports = (io) => {
     });
 
     // Motorista aceita corrida
-    socket.on('driver:acceptRide', async ({ rideId }) => {
+    socket.on('driver:acceptRide', async ({ rideId }, callback) => {
       try {
         console.log(`Motorista ${socket.userId} aceitando corrida ${rideId}`);
         
@@ -232,10 +232,13 @@ module.exports = (io) => {
         }
 
         // Atualizar corrida com status explícito
-        const ride = await Ride.findByIdAndUpdate(
-          rideId,
+        const ride = await Ride.findOneAndUpdate(
           { 
-            status: 'accepted', // Garantir que o status está correto
+            _id: rideId,
+            status: 'pending' // Garantir que a corrida ainda está pendente
+          },
+          { 
+            status: 'accepted',
             driver: socket.userId
           },
           { 
@@ -247,15 +250,8 @@ module.exports = (io) => {
           }
         );
 
-        console.log('Corrida aceita, status:', ride.status); // Log para debug
-
         if (!ride) {
-          throw new Error('Corrida não encontrada');
-        }
-
-        // Verificar se os dados foram populados corretamente
-        if (!ride.driver || !ride.passenger) {
-          throw new Error('Erro ao carregar dados da corrida');
+          throw new Error('Corrida não encontrada ou já foi aceita');
         }
 
         // Atualizar status do motorista
@@ -267,15 +263,18 @@ module.exports = (io) => {
           passengerSocket.emit('ride:accepted', { ride });
         }
 
-        // Confirmar para o motorista com o status correto
-        socket.emit('ride:accepted', {
+        // Notificar outros motoristas
+        socket.broadcast.emit('driver:rideUnavailable', { rideId });
+
+        // Responder ao motorista usando o callback
+        callback({
           success: true,
           ride
         });
 
       } catch (error) {
         console.error('Erro ao aceitar corrida:', error);
-        socket.emit('ride:error', {
+        callback({
           success: false,
           error: error.message || 'Erro ao aceitar corrida'
         });

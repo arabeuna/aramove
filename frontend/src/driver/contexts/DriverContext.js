@@ -151,47 +151,28 @@ export const DriverProvider = ({ children }) => {
   // Funções para gerenciar corridas
   const acceptRide = useCallback(async (rideId) => {
     if (!socket || !connected) {
-      const error = new Error('Socket não está conectado');
-      logger.error('Erro ao aceitar corrida:', error);
-      throw error;
+      throw new Error('Socket não está conectado');
     }
 
     try {
-      logger.debug('Enviando solicitação para aceitar corrida:', rideId);
+      logger.debug('Tentando aceitar corrida:', rideId);
       
       return new Promise((resolve, reject) => {
-        let timeoutId;
-
-        // Função para limpar listeners e timeout
-        const cleanup = () => {
-          clearTimeout(timeoutId);
-          socket.off('driver:rideAccepted');
-          socket.off('driver:rideError');
-        };
-
-        // Ouvir resposta de sucesso
-        socket.on('driver:rideAccepted', (response) => {
-          cleanup();
-          logger.debug('Corrida aceita com sucesso:', response);
-          setCurrentRide(response.ride);
-          resolve(response.ride);
+        socket.emit('driver:acceptRide', { rideId }, (response) => {
+          if (response.success) {
+            logger.debug('Corrida aceita com sucesso:', response.ride);
+            setCurrentRide(response.ride);
+            resolve(response.ride);
+          } else {
+            logger.error('Erro ao aceitar corrida:', response.error);
+            reject(new Error(response.error));
+          }
         });
 
-        // Ouvir erro
-        socket.on('driver:rideError', (error) => {
-          cleanup();
-          logger.error('Erro ao aceitar corrida:', error);
-          reject(new Error(error.message));
-        });
-
-        // Enviar solicitação
-        socket.emit('driver:acceptRide', { rideId });
-
-        // Timeout mais longo (15 segundos)
-        timeoutId = setTimeout(() => {
-          cleanup();
+        // Timeout reduzido para 10 segundos
+        setTimeout(() => {
           reject(new Error('Tempo esgotado ao aceitar corrida'));
-        }, 15000);
+        }, 10000);
       });
     } catch (error) {
       logger.error('Erro ao aceitar corrida:', error);
@@ -226,6 +207,48 @@ export const DriverProvider = ({ children }) => {
     }
   };
 
+  const updateRideStatus = useCallback(async (rideId, newStatus) => {
+    if (!socket || !connected) {
+      throw new Error('Socket não está conectado');
+    }
+
+    try {
+      logger.debug(`Atualizando status da corrida ${rideId} para ${newStatus}`);
+      
+      const eventMap = {
+        'collecting': 'driver:arrived',
+        'in_progress': 'driver:startRide',
+        'completed': 'driver:finishRide'
+      };
+
+      const event = eventMap[newStatus];
+      if (!event) {
+        throw new Error('Status inválido');
+      }
+
+      return new Promise((resolve, reject) => {
+        socket.emit(event, { rideId }, (response) => {
+          if (response.success) {
+            logger.debug('Status atualizado com sucesso:', response.ride);
+            setCurrentRide(response.ride);
+            resolve(response.ride);
+          } else {
+            logger.error('Erro ao atualizar status:', response.error);
+            reject(new Error(response.error));
+          }
+        });
+
+        // Timeout de segurança
+        setTimeout(() => {
+          reject(new Error('Tempo esgotado ao atualizar status'));
+        }, 5000);
+      });
+    } catch (error) {
+      logger.error('Erro ao atualizar status:', error);
+      throw error;
+    }
+  }, [socket, connected]);
+
   const value = {
     user,
     isOnline,
@@ -238,7 +261,8 @@ export const DriverProvider = ({ children }) => {
     toggleStatus,
     acceptRide,
     rejectRide,
-    completeRide
+    completeRide,
+    updateRideStatus
   };
 
   return (

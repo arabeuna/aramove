@@ -5,6 +5,7 @@ import StatusToggle from '../../driver/components/StatusToggle';
 import RideRequest from '../../driver/components/RideRequest';
 import Stats from '../../driver/components/Stats';
 import logger from '../../utils/logger';
+import ActiveRide from '../../driver/components/ActiveRide';
 
 const DriverHome = () => {
   const { 
@@ -36,6 +37,24 @@ const DriverHome = () => {
     );
   }
 
+  const renderRidePanel = () => {
+    if (!currentRide) return null;
+
+    // Se a corrida ainda está pendente, mostra o painel de aceitar/rejeitar
+    if (currentRide.status === 'pending') {
+      return (
+        <RideRequest 
+          ride={currentRide}
+          onAccept={() => acceptRide(currentRide._id)}
+          onReject={() => rejectRide(currentRide._id)}
+        />
+      );
+    }
+
+    // Se a corrida já foi aceita, mostra o painel de gerenciamento
+    return <ActiveRide ride={currentRide} />;
+  };
+
   return (
     <div className="h-screen flex flex-col">
       {/* Header com status e estatísticas */}
@@ -59,14 +78,8 @@ const DriverHome = () => {
         />
       </main>
 
-      {/* Painel de corrida atual */}
-      {currentRide && (
-        <RideRequest 
-          ride={currentRide}
-          onAccept={() => acceptRide(currentRide._id)}
-          onReject={() => rejectRide(currentRide._id)}
-        />
-      )}
+      {/* Painel de corrida */}
+      {renderRidePanel()}
 
       {/* Botão de debug em desenvolvimento */}
       {process.env.NODE_ENV !== 'production' && (

@@ -2,11 +2,19 @@
 
 Aplicativo de transporte estilo Uber desenvolvido com MERN Stack (MongoDB, Express, React, Node.js).
 
-## Tecnologias Utilizadas
+## 🛠️ Tecnologias Utilizadas
 
-- Backend: Node.js, Express, MongoDB
-- Frontend: React, Tailwind CSS
-- Autenticação: JWT
-- Maps: Google Maps API
+- **Backend**: 
+  - Node.js
+  - Express
+  - MongoDB
+  - Socket.IO para comunicação em tempo real
+  - JWT para autenticação
 
-## Estrutura do Projeto
+- **Frontend**:
+  - React
+  - Tailwind CSS
+  - Google Maps API
+  - Socket.IO Client
+
+## 📁 Estrutura do Projeto

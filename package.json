@@ -4,7 +4,7 @@
   "description": "Aplicativo de transporte estilo Uber",
   "main": "backend/server.js",
   "scripts": {
-    "start": "node backend/src/app.js",
+    "start": "cd backend && npm start",
     "build": "cd frontend && npm install && npm run build && cd ../backend && npm install",
     "dev": "concurrently \"cd backend && npm run dev\" \"cd frontend && npm run dev\"",
     "install-deps": "npm install && cd frontend && npm install && cd ../backend && npm install",
@@ -16,8 +16,5 @@
   },
   "dependencies": {
     "concurrently": "^8.2.2"
-  },
-  "devDependencies": {
-    "concurrently": "^8.2.0"
   }
 }
